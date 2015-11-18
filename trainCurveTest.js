@@ -61,7 +61,8 @@ window.onload = function() {
     controls.style.width = (width-10) +"px";    // account for padding
     body.appendChild(controls);
     function cb() { dw.scheduleRedraw();}
-    var arclen = makeCheckBox("ArcLength",controls,cb);
+    //var arclen = makeCheckBox("ArcLength",controls,cb);
+    var arclen = {checked: false};
     var asDots = makeCheckBox("AsDots",controls,cb);
 
     // this wires the pieces together
