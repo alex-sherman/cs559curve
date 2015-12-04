@@ -6,16 +6,13 @@
  * uniform rate
  * at any time, you can ask for the value (between 0 and N)
  */
-function TrainTimeController(width,installTo, initialSteps) {
+function TrainTimeController(width,installTo) {
     "use strict";
     if (!this) {
         throw Error("TrainTimeController not used as a constructor");
     }
     if (!width) {
         width = 600;
-    }
-    if (!initialSteps) {
-        initialSteps = 4;
     }
     // keep the closures happy
     var ttc = this;
@@ -50,7 +47,7 @@ function TrainTimeController(width,installTo, initialSteps) {
     this.slider.setAttribute("type", "range");
     this.slider.style.width = (width-250) + "px";
     this.slider.min = 0;
-    this.slider.max =  initialSteps;
+    this.slider.max =  1;
     this.slider.step = .01;
     this.slider.value = 0;
     this.slider.addEventListener("input",sliderInput);
@@ -60,9 +57,9 @@ function TrainTimeController(width,installTo, initialSteps) {
     this.speed.setAttribute("type", "range");
     this.speed.style.width =  "100px";
     this.speed.min = 0;
-    this.speed.max =  2;
+    this.speed.max =  1;
     this.speed.step = .01;
-    this.speed.value = 1;
+    this.speed.value = 0.1;
     this.speed.addEventListener("input",sliderInput);
     this.div.appendChild(this.speed);
 

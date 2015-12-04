@@ -32,6 +32,8 @@ function makeCheckBox(name, appendTo, callback) {
 
 //
 var cc = new CurveCache();
+var ccl = new CurveCache();
+var ccr = new CurveCache();
 window.onload = function() {
     "use strict";
     var body = document.body;
@@ -45,10 +47,54 @@ window.onload = function() {
 
     //
     // the important part: set up the two main things in the train
-    var ttc = new TrainTimeController(width,body,4);
+    var ttc = new TrainTimeController(width,body);
     var dw = new DotWindow(canvas, [ [100,300], [100,100], [300,100], [300,300]]);
 
-    cc.resample(dw.points);
+    resample(dw.points);
+    function resample(points) {
+        cc.resample(points);
+        points = range(points.length * 2).map(function(i) {
+            return cc.eval(i / points.length / 2);
+        })
+        var lpoints = points.map(function(point, i) {
+            var out = vec2.fromValues(point[0], point[1]);
+            var normal = cc.normal(i / (points.length));
+            vec2.scale(normal, normal, 10);
+            vec2.add(out, out, normal);
+            return out
+        });
+        var rpoints = points.map(function(point, i) {
+            var out = vec2.fromValues(point[0], point[1]);
+            var normal = cc.normal(i / (points.length));
+            vec2.scale(normal, normal, -10);
+            vec2.add(out, out, normal);
+            return out
+        });
+        ccl.resample(lpoints);
+        ccr.resample(rpoints);
+    }
+
+    function drawCurve(cc, ctx, normalOffset) {
+        ctx.save();
+        ctx.strokeStyle = "black";
+        ctx.linewidth = 2;
+        ctx.beginPath();
+        var last = cc.samples.length-1;
+        ctx.moveTo(cc.samples[last][0],cc.samples[last][1]);
+        cc.samples.forEach(function (e, i) {
+            if(normalOffset) {
+                var point = vec2.fromValues(e[0], e[1]);
+                var normal = cc.normal(i / (cc.samples.length));
+                vec2.scale(normal, normal, normalOffset);
+                vec2.add(point, point, normal);
+                ctx.lineTo(point[0],point[1]);
+            }
+            else
+                ctx.lineTo(e[0],e[1]);
+        });
+        ctx.stroke();
+        ctx.restore();
+    }
 
     // control panel
     // this sets up a control panel that has various things for alterning parameters
@@ -61,51 +107,50 @@ window.onload = function() {
     controls.style.width = (width-10) +"px";    // account for padding
     body.appendChild(controls);
     function cb() { dw.scheduleRedraw();}
-    //var arclen = makeCheckBox("ArcLength",controls,cb);
-    var arclen = {checked: false};
-    var asDots = makeCheckBox("AsDots",controls,cb);
+    var drawTracks = makeCheckBox("Draw tracks",controls,cb);
+    drawTracks.checked = true;
+    var asCurves = makeCheckBox("Tracks as curves",controls,cb);
+    asCurves.checked = true;
+    var drawInnerCurve = makeCheckBox("Draw inner curve",controls,cb);
 
     // this wires the pieces together
     // when a dot is changed, recompute the curve (and make sure the timeline is right)
     // when the time changes, redraw (so the train moves)
-    dw.onChange.push(function(dw) {cc.resample(dw.points); ttc.setMax(dw.points.length)});
+    dw.onChange.push(function(dw) {resample(dw.points);});
     ttc.onchange.push(function() {dw.scheduleRedraw();});
 
     // this draws the train and track
     dw.userDraw.push(function(ctx,dotWindow) {
-        if (asDots.checked) {
-            cc.samples.forEach(function (e, i) {
-                ctx.save();
-                ctx.translate(e[0], e[1]);
-                ctx.beginPath();
-                ctx.rect(-2, -2, 4, 4);
-                ctx.fillStyle = "black";
-                ctx.fill();
-                ctx.restore();
-            });
-        } else {
-            ctx.save();
-            ctx.strokeStyle = "black";
-            ctx.linewidth = 2;
-            ctx.beginPath();
-            var last = cc.samples.length-1;
-            ctx.moveTo(cc.samples[last][0],cc.samples[last][1]);
-            cc.samples.forEach(function (e, i) {
-                ctx.lineTo(e[0],e[1]);
-            });
-            ctx.stroke();
-            ctx.restore();
+        if(drawInnerCurve.checked) 
+            drawCurve(cc, ctx);
+        if(drawTracks.checked) {
+            if(asCurves.checked) {
+                drawCurve(ccr, ctx);
+                drawCurve(ccl, ctx);
+            }
+            else {
+                drawCurve(cc, ctx, 10);
+                drawCurve(cc, ctx, -10);
+            }
         }
-
         var t = ttc.getTime();
-        var pos = cc.eval(arclen.checked ? cc.arclenToU(t,true) : t );
+        range(3).map(function(i) {
+            var u = cc.arclenToU(t,true);
+            var pos = cc.eval(u);
+            var tan = cc.tangent(u);
+            var angle = Math.atan2(tan[1], tan[0]);
 
-        ctx.save();
-        ctx.translate(pos[0],pos[1]);
-        ctx.beginPath();
-        ctx.rect(-6,-6,12,12);
-        ctx.fillStyle = "blue";
-        ctx.fill();
-        ctx.restore();
+            ctx.save();
+            ctx.translate(pos[0],pos[1]);
+            ctx.beginPath();
+            ctx.rotate(angle);
+            ctx.rect(-20,-12,40,24);
+            ctx.fillStyle = "blue";
+            ctx.fill();
+            ctx.restore();
+
+
+            t += 48 / cc.arc_length;
+        });
     });
 }
